@@ -1,0 +1,3 @@
+@id,@metadata.@collection,end,festivalId,stageId,start,title
+events/opening-night,Events,2025-10-01T20:00:00Z,festivals/kyiv-music-fest-2025,stages/palace-ukraine/main-stage,2025-10-01T18:00:00Z,Opening Night
+events/rock-evening,Events,2025-10-02T21:30:00Z,festivals/kyiv-music-fest-2025,stages/palace-ukraine/main-stage,2025-10-02T18:00:00Z,Rock Evening

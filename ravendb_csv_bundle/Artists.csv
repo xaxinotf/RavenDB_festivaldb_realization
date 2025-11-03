@@ -1,0 +1,4 @@
+@id,@metadata.@collection,artistType,band.formedYear,band.genre,country,displayName,solo.birthDate,solo.realName
+artists/okean-elzy,Artists,band,1994,rock,UA,Okean Elzy,,
+artists/jerry-heil,Artists,solo,,,UA,Jerry Heil,1995-10-19,Yana Shemayeva
+artists/boombox,Artists,band,2004,indie rock,UA,Boombox,,

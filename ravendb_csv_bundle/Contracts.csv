@@ -1,0 +1,2 @@
+@id,@metadata.@collection,artistId,currency,eventId,organizerId,price,signedAt
+contracts/okean-elzy-opening-night,Contracts,artists/okean-elzy,USD,events/opening-night,organizers/bestorg,10000,2025-09-15

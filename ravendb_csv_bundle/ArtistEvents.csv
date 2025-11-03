@@ -1,0 +1,4 @@
+@id,@metadata.@collection,_from,_to,slot
+artistEvents/okean-elzy-opening-night,ArtistEvents,artists/okean-elzy,events/opening-night,19:00
+artistEvents/jerry-heil-opening-night,ArtistEvents,artists/jerry-heil,events/opening-night,19:40
+artistEvents/boombox-rock-evening,ArtistEvents,artists/boombox,events/rock-evening,20:00
