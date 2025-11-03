@@ -1,0 +1,11 @@
+// Групування зв'язків подій з постачальниками (приклад)
+// Підрахунок подій на кожного постачальника + завантаження назви постачальника
+from EventProviders as ep
+load ep.provider as p
+group by ep.provider
+select {
+  providerId: key(),
+  provider:   p.display_name || p.name,
+  events:     count()
+}
+order by events desc

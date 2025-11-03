@@ -1,0 +1,9 @@
+from Events as e
+load e.venue as v
+order by e.date
+select {
+  event: e.name,
+  date:  e.date,
+  venue: v.display_name || v.name,
+  city:  v.city || (v.address && v.address.city)
+}

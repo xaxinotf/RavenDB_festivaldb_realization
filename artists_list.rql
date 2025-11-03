@@ -1,0 +1,3 @@
+from Artists as a
+order by a.display_name
+select { id: id(a), name: a.display_name, type: a.artist_type, country: a.country }
