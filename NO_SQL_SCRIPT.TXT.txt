@@ -1,0 +1,189 @@
+NO_SQL_SCRIPT.TXT
+==================
+
+
+---------------------------
+Розраховано на Dev-сервер: http://127.0.0.1:8080, база: festival_db.
+
+Передумови
+----------
+1) RavenDB 7.x у Dev-режимі (Studio: http://localhost:8080).
+2) Базу можна створити в Studio (Databases → New Database → festival_db)
+   або авто-створити на першому PUT (ми додаємо ?createDatabase=true).
+
+───────────────────────────────────────────────────────────────────────────────
+1) Заповнення (seed) документів: PowerShell + REST
+───────────────────────────────────────────────────────────────────────────────
+
+# Відкрий PowerShell у Windows та виконай все як один блок:
+
+$HostUrl = "http://127.0.0.1:8080"
+$Db      = "festival_db"
+
+function Put-Doc([string]$id, [string]$json) {
+  $uri = "$HostUrl/databases/$Db/docs?id=$([uri]::EscapeDataString($id))&createDatabase=true"
+  Invoke-WebRequest -Method PUT -Uri $uri -ContentType "application/json" -Body $json | Out-Null
+  Write-Host "PUT  $id" -ForegroundColor Green
+}
+
+# ── Venue ────────────────────────────────────────────────────────────────────
+$venue = @"
+{
+  "@metadata": { "@collection": "Venues" },
+  "display_name": "Palace Ukraine",
+  "name": "Palace Ukraine",
+  "city": "Kyiv",
+  "address": { "city": "Kyiv", "street": "Velyka Vasylkivska 103" }
+}
+"@
+Put-Doc "venues/palace-ukraine" $venue
+
+# ── Artists ──────────────────────────────────────────────────────────────────
+$artist1 = @"
+{
+  "@metadata": { "@collection": "Artists" },
+  "display_name": "Okean Elzy",
+  "artist_type": "band",
+  "country": "UA"
+}
+"@
+Put-Doc "artists/okean-elzy" $artist1
+
+$artist2 = @"
+{
+  "@metadata": { "@collection": "Artists" },
+  "display_name": "Boombox",
+  "artist_type": "band",
+  "country": "UA"
+}
+"@
+Put-Doc "artists/boombox" $artist2
+
+$artist3 = @"
+{
+  "@metadata": { "@collection": "Artists" },
+  "display_name": "Jerry Heil",
+  "artist_type": "solo",
+  "country": "UA"
+}
+"@
+Put-Doc "artists/jerry-heil" $artist3
+
+# ── Events ───────────────────────────────────────────────────────────────────
+$event1 = @"
+{
+  "@metadata": { "@collection": "Events" },
+  "name": "Opening Night",
+  "date": "2025-10-01T18:00:00Z",
+  "venue": "venues/palace-ukraine",
+  "festivalId": "festivals/kyiv-music-fest-2025"
+}
+"@
+Put-Doc "events/opening-night" $event1
+
+$event2 = @"
+{
+  "@metadata": { "@collection": "Events" },
+  "name": "Rock Evening",
+  "date": "2025-10-02T18:00:00Z",
+  "venue": "venues/palace-ukraine",
+  "festivalId": "festivals/kyiv-music-fest-2025"
+}
+"@
+Put-Doc "events/rock-evening" $event2
+
+# ── Festival (опційно) ───────────────────────────────────────────────────────
+$fest = @"
+{
+  "@metadata": { "@collection": "Festivals" },
+  "display_name": "Kyiv Music Fest 2025",
+  "city": "Kyiv",
+  "start": "2025-10-01T00:00:00Z",
+  "end": "2025-10-07T23:59:59Z"
+}
+"@
+Put-Doc "festivals/kyiv-music-fest-2025" $fest
+
+Write-Host "`nSeed завершено. Перевір у Studio (Documents)." -ForegroundColor Cyan
+
+
+───────────────────────────────────────────────────────────────────────────────
+2) Корисні запити (RQL) для перевірки / захисту
+───────────────────────────────────────────────────────────────────────────────
+
+# 2.1. Артисти (проєкція)
+from Artists as a
+order by a.display_name
+select { id: id(a), name: a.display_name, type: a.artist_type, country: a.country }
+
+# 2.2. Події + майданчик (динамічний індекс за date)
+from Events as e
+order by e.date
+load e.venue as v
+select {
+  event: e.name,
+  date:  e.date,
+  venue: v.display_name || v.name,
+  city:  v.city || (v.address && v.address.city)
+}
+
+# 2.3. Перелік усіх документів з колекціями (@collection)
+from @all_docs as d
+order by id()
+select { id: id(d), coll: metadata(d)['@collection'] }
+
+# 2.4. Події у проміжку дат (з параметрами)
+from Events as e
+where e.date >= $from and e.date <= $to
+order by e.date
+load e.venue as v
+select {
+  event: e.name,
+  date:  e.date,
+  venue: v.display_name || v.name,
+  city:  v.city
+}
+# Параметри (JSON-панель у Studio):
+# { "from": "2025-10-01T00:00:00Z", "to": "2025-10-31T23:59:59Z" }
+
+# 2.5. (Коли з’являться дані) приклад group by для зв’язків постачальників
+# Припустимо, є колекція EventProviders { eventId, providerId, role }
+from EventProviders as ep
+group by ep.providerId
+select {
+  provider: ep.providerId,
+  count: count()
+}
+order by count desc
+
+
+───────────────────────────────────────────────────────────────────────────────
+3) (Опційно) Статичний індекс Events/ByDate через REST
+───────────────────────────────────────────────────────────────────────────────
+# PowerShell:
+$indexDef = @"
+{
+  "Name": "Events/ByDate",
+  "Maps": [ "from e in docs.Events select new { e.date, e.name, e.venue }" ]
+}
+"@
+Invoke-WebRequest -Method PUT `
+  -Uri "$HostUrl/databases/$Db/indexes?name=Events/ByDate" `
+  -ContentType "application/json" -Body $indexDef | Out-Null
+Write-Host "Індекс 'Events/ByDate' створено." -ForegroundColor Green
+
+# Приклад запиту по індексу:
+from index 'Events/ByDate' as e
+order by e.date
+load e.venue as v
+select { event: e.name, date: e.date, venue: v.display_name || v.name }
+
+
+───────────────────────────────────────────────────────────────────────────────
+4) Експорт (Smuggler) — якщо потрібно дамп
+───────────────────────────────────────────────────────────────────────────────
+# У Studio: Settings → Export database → "Dump of festival_db … .ravendbdump"
+# або CLI (адаптуй шляхи):
+# Raven.Smuggler out http://127.0.0.1:8080 festival_db "C:\backups\festival_db.ravendbdump"
+
+
